@@ -1,4 +1,4 @@
-package initsystemtest
+package initsystemtest.simple
 
 import initsystem.*
 import gdext.classes.{InputEvent, Node}

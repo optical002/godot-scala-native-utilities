@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://cvka0rbk5ok3h"]
+
+[node name="World" type="World" unique_id=1477713526 node_paths=PackedStringArray("init_system_node", "player", "spawner")]
+init_system_node = NodePath("InitSystemNode")
+player = NodePath("Player")
+spawner = NodePath("Spawner")
+
+[node name="InitSystemNode" type="InitSystemNode" parent="." unique_id=1571621115]
+
+[node name="Player" type="Player" parent="." unique_id=1929924186 node_paths=PackedStringArray("rig")]
+rig = NodePath("Rig")
+
+[node name="Rig" type="Rig" parent="Player" unique_id=170242853]
+label = "PlayerRig"
+
+[node name="Spawner" type="Spawner" parent="." unique_id=1803015104 node_paths=PackedStringArray("enemy")]
+enemy = NodePath("Enemy")
+max_enemies = 10
+spawn_interval = 1.0
+
+[node name="Enemy" type="Enemy" parent="Spawner" unique_id=343928617 node_paths=PackedStringArray("rig")]
+rig = NodePath("Rig")
+
+[node name="Rig" type="Rig" parent="Spawner/Enemy" unique_id=1361281696]
+label = "EnemyRig"

@@ -1,4 +1,4 @@
-package initsystemtest
+package initsystemtest.simple
 
 import gdext.classes.Node
 import gdext.api.GodotPrint
@@ -20,6 +20,6 @@ case class InitEntry(
     // Test get by instance id.
     val instanceId = initTestNode.instanceId
     GodotPrint.print(s"instance Id: ${instanceId.toI64} and init id: ${init.selfId.value}")
-    val initFromCtx = ctx.getInitA[InitTestNode.Init](instanceId).get 
-    GodotPrint.print(s"Init gold getting from ctx by instance id: ${initFromCtx.totalGold}")
+    val initFromCtx = ctx.getInitA[InitTestNode.Init](instanceId)//.get
+    // GodotPrint.print(s"Init gold getting from ctx by instance id: ${initFromCtx.totalGold}")
 
