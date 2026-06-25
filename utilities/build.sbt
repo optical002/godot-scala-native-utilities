@@ -144,10 +144,12 @@ lazy val rx = godotLibrary("rx")
 // ---------------------------------------------------------------------------
 lazy val logicConstructor = godotLibrary("logic-constructor")
   .settings(
-    // Locally-published Scala-Native port of SHocon's HOCON parser (see
-    // ../../shocon, branch scala3-native-port, `sbt parser/publishLocal`). Used by
-    // hoconConfigParser.scala to parse HOCON strings into this module's ConfigValue.
-    libraryDependencies += "org.akka-js" %%% "shocon-parser" % "1.0.0-native-SNAPSHOT",
+    // Scala-Native port of SHocon's HOCON parser, hosted as a raw-git Maven repo
+    // on GitHub (optical002/shocon, `maven` branch; source on scala3-native-port).
+    // Used by hoconConfigParser.scala to parse HOCON into this module's ConfigValue.
+    resolvers += "shocon-native" at
+      "https://raw.githubusercontent.com/optical002/shocon/maven/maven",
+    libraryDependencies += "org.akka-js" %%% "shocon-parser" % "1.0.0-native",
     libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
     testFrameworks += new TestFramework("munit.Framework")
   )
