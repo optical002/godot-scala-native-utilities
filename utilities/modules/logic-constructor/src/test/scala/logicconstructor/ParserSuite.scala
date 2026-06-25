@@ -4,13 +4,7 @@ import TestFixtures.*
 import logicconstructor.ConfigValue.*
 import logicconstructor.parser.*
 
-/** Port of the Rust parser unit tests + `basic_usage.rs` parsing tests, built
-  * against [[ConfigValue]] literals (the Rust tests parsed HOCON text; we
-  * construct the equivalent value trees directly).
-  */
 class ParserSuite extends munit.FunSuite:
-
-  // --- CollisionKind parser ---
 
   test("parse single collision kinds") {
     assertEquals(parseCollisionKind(CStr("Self")), Right(CollisionKind.Self))
@@ -44,8 +38,6 @@ class ParserSuite extends munit.FunSuite:
     assert(err.left.exists(_.contains("expects a string")))
   }
 
-  // --- raw config parser ---
-
   test("simple format raw defaults to Other") {
     val value = obj("DealDamage" -> CNum(10))
     val raw = parseLcConfigRaw(value).toOption.get
@@ -75,8 +67,6 @@ class ParserSuite extends munit.FunSuite:
     assert(parseLcConfigRaw(CNum(42)).left.exists(_.contains("expects an object")))
   }
 
-  // --- typed config parser ---
-
   test("typed config via effect closure runs") {
     val value = obj("lca" -> obj("DealDamage" -> CNum(15)), "collision" -> CStr("Self"))
     val config = parseLcConfig(value, parseGameEffect).toOption.get
@@ -87,8 +77,6 @@ class ParserSuite extends munit.FunSuite:
     runLca(LcActionConfig(Vector(config)), src, src)
     assertEquals(hp.value, 85.0)
   }
-
-  // --- list parser ---
 
   test("empty array parses to empty list") {
     assertEquals(parseLcConfigListRaw(arr()).map(_.size), Right(0))
@@ -119,8 +107,6 @@ class ParserSuite extends munit.FunSuite:
     assert(err.contains("expects an array"))
   }
 
-  // --- action config parser (end to end) ---
-
   test("parseLcActionConfig builds a typed config") {
     val value = arr(
       obj("DealDamage" -> CNum(10)),
@@ -142,8 +128,8 @@ class ParserSuite extends munit.FunSuite:
     val playerHp = TestFixtures.Health(100.0)
     val enemyHp = TestFixtures.Health(100.0)
     runLca(action, entity(LcGameEntity.Player(playerHp)), entity(LcGameEntity.Enemy(enemyHp)))
-    assertEquals(enemyHp.value, 85.0) // OTHER hit enemy: -15
-    assertEquals(playerHp.value, 104.0) // SELF healed source: +4
+    assertEquals(enemyHp.value, 85.0)
+    assertEquals(playerHp.value, 104.0)
   }
 
   test("parseLcActionConfig rejects a non-array") {

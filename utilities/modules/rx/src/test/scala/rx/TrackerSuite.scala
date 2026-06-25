@@ -6,7 +6,7 @@ class TrackerSuite extends munit.FunSuite:
     val r = RxRef(0)
     var count = 0
     val dt = DisposableTracker()
-    r.value.subscribe(dt.tracker, _ => count += 1)
+    r.subscribe(_ => count += 1)(using dt)
     assertEquals(count, 1)
     r.set(1)
     assertEquals(count, 2)
@@ -20,10 +20,10 @@ class TrackerSuite extends munit.FunSuite:
     var c1 = 0
     var c2 = 0
     val t1 = DisposableTracker()
-    r.value.subscribe(t1.tracker, _ => c1 += 1)
+    r.subscribe(_ => c1 += 1)(using t1)
 
     val t2 = DisposableTracker()
-    r.value.subscribe(t2.tracker, _ => c2 += 1)
+    r.subscribe(_ => c2 += 1)(using t2)
     r.set(1)
     assertEquals(c1, 2)
     assertEquals(c2, 2)
@@ -43,7 +43,7 @@ class TrackerSuite extends munit.FunSuite:
     val dt = DisposableTracker()
     val r = RxRef(0)
     var count = 0
-    r.value.subscribe(dt.tracker, _ => count += 1)
+    r.subscribe(_ => count += 1)(using dt)
     r.set(1)
     assertEquals(count, 2)
 
@@ -51,8 +51,8 @@ class TrackerSuite extends munit.FunSuite:
     r.set(2)
     assertEquals(count, 2)
 
-    r.value.subscribe(dt.tracker, _ => count += 1)
-    assertEquals(count, 3) // immediate call with current value
+    r.subscribe(_ => count += 1)(using dt)
+    assertEquals(count, 3)
     r.set(3)
     assertEquals(count, 4)
   }
@@ -62,14 +62,14 @@ class TrackerSuite extends munit.FunSuite:
     var count = 0
     val parent = DisposableTracker()
     val child = DisposableTracker()
-    r.value.subscribe(child.tracker, _ => count += 1)
-    parent.tracker.track(child)
+    r.subscribe(_ => count += 1)(using child)
+    parent.track(child)
 
     assertEquals(count, 1)
     r.set(1)
     assertEquals(count, 2)
 
-    parent.dispose() // disposes child too
+    parent.dispose()
     r.set(2)
     assertEquals(count, 2)
   }
@@ -78,8 +78,8 @@ class TrackerSuite extends munit.FunSuite:
     val r = RxRef(0)
     val dt = DisposableTracker()
     assertEquals(dt.subscriptionCount, 0)
-    r.value.subscribe(dt.tracker, _ => ())
-    r.value.subscribe(dt.tracker, _ => ())
+    r.subscribe(_ => ())(using dt)
+    r.subscribe(_ => ())(using dt)
     assertEquals(dt.subscriptionCount, 2)
     dt.dispose()
     assertEquals(dt.subscriptionCount, 0)

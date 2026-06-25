@@ -92,16 +92,22 @@ lazy val initSystem = godotLibrary("init-system")
 
 // ---------------------------------------------------------------------------
 // Library: rx — a single-threaded push-based reactive programming library.
-// A Scala port of the Rust `rx-rs` crate. Core types: RxRef/RxVal (reactive
-// cells with a current value + deduplicated updates) and RxSubject/RxObservable
-// (event streams without state), plus map/flatMap/zip/join operators and a
-// Tracker/DisposableTracker pair for subscription lifetimes.
+// Originally a Scala port of the Rust `rx-rs` crate, since redesigned around the
+// Typelevel ecosystem. Core types: RxRef/RxVal (reactive cells with a current
+// value + deduplicated updates) and RxSubject/RxObservable (event streams
+// without state). Each public type is a minimal trait with its implementation in
+// the companion `apply`.
 //
-// Port note: Rust leaned on Rc<RefCell<…>> + Weak + a `_lifetime_tracker` field
-// to juggle ownership under the borrow checker. On Scala Native the GC owns
-// lifetimes, so derived cells keep their source subscription alive by holding the
-// source tracker in a field, and use java.lang.ref.WeakReference where Rust used
-// `Weak` (so a derived cell isn't kept alive by its source). Behaviour matches:
+// Operators come from cats typeclasses: Functor + FlatMap (and a custom Apply
+// whose `product` is emit-on-either) for RxVal, Functor + FlatMap for
+// RxObservable. The instances take a `using Tracker`, so `import cats.syntax.all.*`
+// plus an in-scope Tracker enables `map`/`flatMap`/`tupled`/`mapN`. zip/join and
+// the cross-type bridges (stream/toVal/flatMapVal/…) stay as trait methods.
+//
+// Lifetimes are tracker-only: a derived container anchors its bridge subscription
+// on the in-scope `using Tracker`, so disposing that tracker tears the graph down
+// (no Rc<RefCell>/Weak/`_lifetime_tracker` as in the Rust original). Tracker is a
+// trait and DisposableTracker <: Tracker. Behaviour matches the original:
 // immediate-on-subscribe for cells, no-immediate for streams, dedup on cells,
 // switch-on-change flatMap, emit-on-either join/zip.
 //
@@ -109,6 +115,7 @@ lazy val initSystem = godotLibrary("init-system")
 // ---------------------------------------------------------------------------
 lazy val rx = godotLibrary("rx")
   .settings(
+    libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
     libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
     testFrameworks += new TestFramework("munit.Framework")
   )

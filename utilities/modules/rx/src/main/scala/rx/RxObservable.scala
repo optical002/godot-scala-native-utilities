@@ -1,120 +1,86 @@
 package rx
 
 import scala.collection.mutable
+import cats.{FlatMap, Apply}
 
-/** A read-only stream of events.
-  *
-  * Unlike [[RxVal]], an `RxObservable` holds no current value: subscribers are
-  * only called on emissions after they subscribe, never immediately. Useful for
-  * discrete events (clicks, network messages, ...).
-  *
-  * Obtain one from an [[RxSubject]] via `.observable`, or derive one with the
-  * operators below.
-  */
-final class RxObservable[T] private[rx] ():
-  private val subscribers = mutable.ArrayBuffer.empty[T => Unit]
-
-  // Keeps source subscriptions of derived observables alive while this one is
-  // reachable. See the port note on RxVal. Never read.
-  private[rx] var lifetime: AnyRef = null
-
-  /** Subscribes to events. Called on each emission until `tracker` is disposed;
-    * NOT called immediately on subscribe.
-    */
-  def subscribe(tracker: Tracker, f: T => Unit): Unit =
-    subscribers += f
-    tracker.add(() => subscribers -= f)
-
-  /** Number of active subscribers. */
-  def subscriberCount: Int = subscribers.length
-
-  /** Internal: emit an event to all current subscribers. */
-  private[rx] def emit(value: T): Unit =
-    // Snapshot so subscribers added/removed during notification are safe.
-    subscribers.toArray.foreach(_(value))
-
-  /** Converts to an [[RxVal]] seeded with `initial`, updated on each emission for
-    * as long as `tracker` lives.
-    */
-  def toVal(initial: T, tracker: Tracker): RxVal[T] =
-    val ref = RxRef(initial)
-    subscribe(tracker, value => ref.set(value))
-    ref.value
-
-  /** Maps emissions with `f`. */
-  def map[B](f: T => B): RxObservable[B] =
-    val subject = RxSubject[B]()
-    val tracker = DisposableTracker()
-    subscribe(tracker.tracker, value => subject.next(f(value)))
-    val obs = subject.observable
-    obs.lifetime = tracker
-    obs
-
-  /** Flat-maps with a function returning an [[RxVal]]. On each emission it emits
-    * the inner cell's current value AND subscribes to its future changes
-    * (cancelling the previous inner subscription).
-    */
-  def flatMapVal[B](f: T => RxVal[B]): RxObservable[B] =
-    val subject = RxSubject[B]()
-    val outerTracker = DisposableTracker()
-    var innerTracker = DisposableTracker()
-    subscribe(
-      outerTracker.tracker,
-      outer =>
-        val newInner = f(outer)
-        innerTracker.dispose()
-        innerTracker = DisposableTracker()
-        subject.next(newInner.get)
-        newInner.subscribe(innerTracker.tracker, v => subject.next(v))
-    )
-    val obs = subject.observable
-    obs.lifetime = (outerTracker, () => innerTracker)
-    obs
-
-  /** Flat-maps with a function returning an [[RxRef]]. */
-  def flatMapRef[B](f: T => RxRef[B]): RxObservable[B] =
-    flatMapVal(x => f(x).value)
-
-  /** Flat-maps with a function returning an [[RxObservable]], switching to the new
-    * observable on each emission.
-    */
-  def flatMapObservable[B](f: T => RxObservable[B]): RxObservable[B] =
-    val subject = RxSubject[B]()
-    val outerTracker = DisposableTracker()
-    var innerTracker = DisposableTracker()
-    subscribe(
-      outerTracker.tracker,
-      outer =>
-        val newInner = f(outer)
-        innerTracker.dispose()
-        innerTracker = DisposableTracker()
-        newInner.subscribe(innerTracker.tracker, v => subject.next(v))
-    )
-    val obs = subject.observable
-    obs.lifetime = (outerTracker, () => innerTracker)
-    obs
-
-  /** Flat-maps with a function returning an [[RxSubject]]. */
-  def flatMapSubject[B](f: T => RxSubject[B]): RxObservable[B] =
-    flatMapObservable(x => f(x).observable)
-
-  /** Joins this observable with `other`; the result emits whenever either
-    * source emits.
-    */
-  def joinObservable(other: RxObservable[T]): RxObservable[T] =
-    val subject = RxSubject[T]()
-    val tracker1 = DisposableTracker()
-    val tracker2 = DisposableTracker()
-    subscribe(tracker1.tracker, v => subject.next(v))
-    other.subscribe(tracker2.tracker, v => subject.next(v))
-    val obs = subject.observable
-    obs.lifetime = (tracker1, tracker2)
-    obs
-
-  /** Joins this observable with an [[RxSubject]]. */
-  def joinSubject(other: RxSubject[T]): RxObservable[T] =
-    joinObservable(other.observable)
+trait RxObservable[T]:
+  def subscribe(f: T => Unit)(using Tracker): Unit
+  def subscriberCount: Int
+  def toVal(initial: T)(using Tracker): RxVal[T]
+  def flatMap[S[_], B](f: T => S[B])(using AsObservable[S], Tracker): RxObservable[B]
+  def join[S[_]](other: S[T])(using AsObservable[S], Tracker): RxObservable[T]
+  private[rx] def emit(value: T): Unit
 
 object RxObservable:
-  /** Internal constructor; users create an [[RxSubject]] and call `.observable`. */
-  private[rx] def apply[T](): RxObservable[T] = new RxObservable[T]()
+
+  private[rx] def apply[T](): RxObservable[T] = new Impl[T]
+
+  private final class Impl[T] extends RxObservable[T]:
+    private val subscribers = mutable.ArrayBuffer.empty[T => Unit]
+
+    def subscribe(f: T => Unit)(using tracker: Tracker): Unit =
+      subscribers += f
+      tracker.add(() => subscribers -= f)
+
+    def subscriberCount: Int = subscribers.length
+
+    private[rx] def emit(value: T): Unit =
+      subscribers.toArray.foreach(_(value))
+
+    def toVal(initial: T)(using Tracker): RxVal[T] =
+      val ref = RxRef(initial)
+      subscribe(value => ref.set(value))
+      ref.value
+
+    def flatMap[S[_], B](f: T => S[B])(using src: AsObservable[S], outer: Tracker): RxObservable[B] =
+      val subject = RxSubject[B]()
+      var inner = freshInner
+      subscribe { o =>
+        val newInner = f(o)
+        inner.dispose()
+        inner = freshInner
+        src.current(newInner).foreach(subject.next)
+        src.subscribeTo(newInner, v => subject.next(v))(using inner)
+      }
+      subject.observable
+
+    def join[S[_]](other: S[T])(using src: AsObservable[S], t: Tracker): RxObservable[T] =
+      val subject = RxSubject[T]()
+      subscribe(v => subject.next(v))
+      src.current(other).foreach(subject.next)
+      src.subscribeTo(other, v => subject.next(v))
+      subject.observable
+
+    // A swappable inner tracker tied to the captured outer Tracker, so switching
+    // disposes the previous inner subscription and the whole graph tears down
+    // with the outer tracker.
+    private def freshInner(using outer: Tracker): DisposableTracker =
+      val t = DisposableTracker()
+      outer.track(t)
+      t
+
+  // map/flatMap from cats. No `pure` (a stream has no current value), so no
+  // Monad — only Functor (via Apply) + FlatMap. flatMap is switch-on-change,
+  // matching flatMapObservable.
+
+  given rxObservableInstance(using outer: Tracker): (Apply[RxObservable] & FlatMap[RxObservable]) =
+    new Apply[RxObservable] with FlatMap[RxObservable]:
+      def map[A, B](fa: RxObservable[A])(f: A => B): RxObservable[B] =
+        val subject = RxSubject[B]()
+        fa.subscribe(v => subject.next(f(v)))
+        subject.observable
+
+      def flatMap[A, B](fa: RxObservable[A])(f: A => RxObservable[B]): RxObservable[B] =
+        fa.flatMap(f)
+
+      // Degenerate but total: streams have no current value, so each step only
+      // re-subscribes on Left. Not advertised as a Monad.
+      def tailRecM[A, B](a: A)(f: A => RxObservable[Either[A, B]]): RxObservable[B] =
+        val subject = RxSubject[B]()
+        def drive(in: RxObservable[Either[A, B]]): Unit =
+          in.subscribe {
+            case Right(b) => subject.next(b)
+            case Left(a2) => drive(f(a2))
+          }
+        drive(f(a))
+        subject.observable

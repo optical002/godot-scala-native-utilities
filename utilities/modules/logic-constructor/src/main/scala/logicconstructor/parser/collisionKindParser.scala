@@ -13,15 +13,6 @@ private def parseSingleCollisionKind(s: String): Either[String, CollisionKind] =
         s"Unknown CollisionKind: '$other'. Expected 'Self', 'SameKind', or 'Other'"
       )
 
-/** Parse a [[ConfigValue]] into a [[CollisionKind]] bit-flag set.
-  *
-  * Accepts a string of one or more flag names separated by `|`:
-  *   - single: `"Self"`
-  *   - multiple: `"Self | Other"`, `"Self|SameKind|Other"`
-  *
-  * (HOCON's unquoted strings parse to [[ConfigValue.CStr]] too, so `Self`
-  * without quotes works once the consumer's reader has produced a `CStr`.)
-  */
 def parseCollisionKind(value: ConfigValue): Either[String, CollisionKind] =
   value match
     case CStr(s) =>
