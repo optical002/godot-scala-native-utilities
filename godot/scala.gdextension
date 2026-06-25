@@ -1,0 +1,21 @@
+; GENERATED — DO NOT EDIT. Written by the sbt-godot-scala-native plugin
+; (`godotManifest` / `godotBuild`). Change the plugin settings
+; (godotLibName, godotCompatibilityMinimum) instead, then rebuild.
+[configuration]
+entry_symbol = "godot_scala_init"
+compatibility_minimum = 4.2
+; Hot-reload the library when the .so is replaced (paired with the atomic
+; swap in `godotBuild`), so rebuilding does not require an editor restart.
+reloadable = true
+
+[libraries]
+linux.debug.x86_64   = "res://.scala/libscala-native-gdextension.so"
+linux.release.x86_64 = "res://.scala/libscala-native-gdextension.so"
+
+macos.debug          = "res://.scala/libscala-native-gdextension.dylib"
+macos.release        = "res://.scala/libscala-native-gdextension.dylib"
+macos.debug.arm64    = "res://.scala/libscala-native-gdextension.dylib"
+macos.release.arm64  = "res://.scala/libscala-native-gdextension.dylib"
+
+windows.debug.x86_64   = "res://.scala/scala-native-gdextension.dll"
+windows.release.x86_64 = "res://.scala/scala-native-gdextension.dll"

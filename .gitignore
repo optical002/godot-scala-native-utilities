@@ -1,0 +1,5 @@
+# IDE / OS noise for the generated project. Build outputs are ignored by the
+# per-directory .gitignore files under godot/ and scala/.
+.idea/
+.vscode/
+.DS_Store

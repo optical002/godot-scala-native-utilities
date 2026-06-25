@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://bj88341lyxenb"]
+
+[node name="Entry" type="Node" unique_id=412112042]
+
+[node name="InitEntry" type="InitEntry" parent="." unique_id=1156251416 node_paths=PackedStringArray("init_test_node")]
+init_test_node = NodePath("InitTestNode")
+
+[node name="InitTestNode" type="InitTestNode" parent="InitEntry" unique_id=980608702]
+gold = 12
