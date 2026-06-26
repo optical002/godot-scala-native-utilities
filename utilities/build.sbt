@@ -69,50 +69,12 @@ lazy val root = (project in file("."))
     publish / skip := true
   )
 
-// ---------------------------------------------------------------------------
-// Library: init-system — lifecycle/initialization management for game objects.
-// A Scala port of the Rust `init-system` crate (godot-rust-utils), redesigned to
-// use Scala's inheritance + plain mutable collections instead of Rust's
-// trait-juggling and Rc<RefCell> borrow-checker workarounds.
-//
-// Engine-independent tests live under src/test and run via `sbt init-system/test`
-// (munit on Scala Native). Tests that need a live Godot runtime live in the
-// separate `init-system-engine-test` library below.
-// ---------------------------------------------------------------------------
 lazy val initSystem = godotLibrary("init-system")
   .settings(
     libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
     testFrameworks += new TestFramework("munit.Framework")
   )
 
-// The Godot-runtime tests for init-system (Node-backed factory, input dispatch)
-// live in the consuming project (../scala/src/main/scala/initsystemtest) and run
-// in-engine — they need a live Godot, so they sit with the game sources rather
-// than as a separate published library here.
-
-// ---------------------------------------------------------------------------
-// Library: rx — a single-threaded push-based reactive programming library.
-// Originally a Scala port of the Rust `rx-rs` crate, since redesigned around the
-// Typelevel ecosystem. Core types: RxRef/RxVal (reactive cells with a current
-// value + deduplicated updates) and RxSubject/RxObservable (event streams
-// without state). Each public type is a minimal trait with its implementation in
-// the companion `apply`.
-//
-// Operators come from cats typeclasses: Functor + FlatMap (and a custom Apply
-// whose `product` is emit-on-either) for RxVal, Functor + FlatMap for
-// RxObservable. The instances take a `using Tracker`, so `import cats.syntax.all.*`
-// plus an in-scope Tracker enables `map`/`flatMap`/`tupled`/`mapN`. zip/join and
-// the cross-type bridges (stream/toVal/flatMapVal/…) stay as trait methods.
-//
-// Lifetimes are tracker-only: a derived container anchors its bridge subscription
-// on the in-scope `using Tracker`, so disposing that tracker tears the graph down
-// (no Rc<RefCell>/Weak/`_lifetime_tracker` as in the Rust original). Tracker is a
-// trait and DisposableTracker <: Tracker. Behaviour matches the original:
-// immediate-on-subscribe for cells, no-immediate for streams, dedup on cells,
-// switch-on-change flatMap, emit-on-either join/zip.
-//
-// Engine-independent tests live under src/test and run via `sbt rx/test`.
-// ---------------------------------------------------------------------------
 lazy val rx = godotLibrary("rx")
   .settings(
     libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
@@ -120,40 +82,19 @@ lazy val rx = godotLibrary("rx")
     testFrameworks += new TestFramework("munit.Framework")
   )
 
-// ---------------------------------------------------------------------------
-// Library: logic-constructor — move combat/ability logic out of code and into
-// config: a list of typed actions ("deal 15 damage", "heal 4") each gated by a
-// collision rule (Self / SameKind / Other), run from a source entity against a
-// target. A Scala port of the Rust `logic-constructor` crate.
-//
-// Port note: the Rust crate parsed HOCON via the `hocon-rs` crate's `Value`
-// type. No HOCON parser publishes a Scala-Native-0.5 + Scala-3 artifact
-// (pureconfig is JVM-only; shocon's only native build is native0.3/Scala-2.11),
-// so this module carries its own tiny `ConfigValue` ADT (Str/Num/Obj/Arr) and
-// ports every parser against it. Consumers build a `ConfigValue` however they
-// like (Godot `ConfigFile`/JSON, a hand-written reader, or literals in tests).
-//
-// The Rust `Box<dyn LcAction<T>>` + `clone_box` dance is gone — Scala traits are
-// reference types, so `LcAction[T]` is just a trait and configs hold plain
-// references. `CollisionKind` is a small bit-flag value class instead of the
-// `bitflags!` macro. Behaviour matches: simple-form defaults to OTHER, full form
-// requires both `lca` and `collision`, run_lca fires self/same-kind/other arms.
-//
-// Engine-independent tests live under src/test and run via
-// `sbt logic-constructor/test`.
-// ---------------------------------------------------------------------------
 lazy val logicConstructor = godotLibrary("logic-constructor")
   .settings(
-    // Scala-Native port of SHocon's HOCON parser, hosted as a raw-git Maven repo
-    // on GitHub (optical002/shocon, `maven` branch; source on scala3-native-port).
-    // Used by hoconConfigParser.scala to parse HOCON into this module's ConfigValue.
+    // Scala-Native fork of pureconfig (optical002/pureconfig, `maven` branch; source on
+    // scala-native-port), hosted as a raw-git Maven repo. Provides typed HOCON decoding via
+    // `pureconfig.ConfigSource` + Scala 3 `derives ConfigReader`. Its backend is the SHocon
+    // `com.typesafe.config` shim (org.akka-js:shocon-parser), pulled in transitively — the shocon
+    // resolver below is required so that transitive dependency can be located.
+    resolvers += "pureconfig-native" at
+      "https://raw.githubusercontent.com/optical002/pureconfig/maven/maven",
     resolvers += "shocon-native" at
       "https://raw.githubusercontent.com/optical002/shocon/maven/maven",
-    libraryDependencies += "org.akka-js" %%% "shocon-parser" % "1.0.0-native",
+    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native",
     libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
     testFrameworks += new TestFramework("munit.Framework")
   )
 
-// Future libraries (publish on their own) — add as needed:
-// lazy val mathLib  = godotLibrary("math-lib")
-// ...and aggregate them in `root` above.
