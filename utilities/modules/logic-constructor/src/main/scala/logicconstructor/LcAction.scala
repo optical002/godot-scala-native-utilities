@@ -3,15 +3,15 @@ package logicconstructor
 import pureconfig.ConfigReader
 
 trait LcAction[A <: LcEntity.Type]:
-  def apply(source: LcEntity[A], target: LcEntity[A]): Unit
+  def apply(source: A, target: A): Unit
 
 object LcAction:
   final case class Config[A <: LcEntity.Type](
     data: Seq[Config.Single[A]]
   ):
     def runLca(
-      source: LcEntity[A],
-      target: LcEntity[A]
+      source: A,
+      target: A
     ): Unit =
       for actionConfig <- data do
         val containsSelf = actionConfig.collision.contains(CollisionKind.Self)
@@ -34,9 +34,9 @@ object LcAction:
 
     final case class WithSource[A <: LcEntity.Type](
       config: LcAction.Config[A],
-      source: LcEntity[A],
+      source: A,
     ):
-      def run(target: LcEntity[A]): Unit =
+      def run(target: A): Unit =
         config.runLca(source, target)
 
     /** Decodes a single action, accepting two HOCON forms:

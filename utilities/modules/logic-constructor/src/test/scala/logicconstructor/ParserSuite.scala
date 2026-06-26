@@ -72,7 +72,7 @@ class ParserSuite extends munit.FunSuite:
     assertEquals(cfg.collision, CollisionKind.Self)
 
     val hp = TestFixtures.Health(100.0)
-    val src = entity(LcGameEntity.Enemy(hp))
+    val src = LcGameEntity.Enemy(hp)
     Config(Vector(cfg)).runLca(src, src)
     assertEquals(hp.value, 85.0)
   }
@@ -111,7 +111,7 @@ class ParserSuite extends munit.FunSuite:
 
     val playerHp = TestFixtures.Health(100.0)
     val enemyHp = TestFixtures.Health(100.0)
-    action.runLca(entity(LcGameEntity.Player(playerHp)), entity(LcGameEntity.Enemy(enemyHp)))
+    action.runLca(LcGameEntity.Player(playerHp), LcGameEntity.Enemy(enemyHp))
     assertEquals(enemyHp.value, 85.0)
     assertEquals(playerHp.value, 104.0)
   }

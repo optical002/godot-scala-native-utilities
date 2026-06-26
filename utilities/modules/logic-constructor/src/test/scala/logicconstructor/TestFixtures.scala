@@ -24,21 +24,13 @@ object TestFixtures:
 
   import LcGameEntity.*
 
-  def entity(e: LcGameEntity): LcEntity[LcGameEntity] = LcEntity(e)
-
   final case class DealDamage(amount: Double) extends LcAction[LcGameEntity]:
-    def apply(
-        source: LcEntity[LcGameEntity],
-        target: LcEntity[LcGameEntity]
-    ): Unit =
-      target.gameEntity.maybeHealth.foreach(h => h.value -= amount)
+    def apply(source: LcGameEntity, target: LcGameEntity): Unit =
+      target.maybeHealth.foreach(h => h.value -= amount)
 
   final case class Heal(amount: Double) extends LcAction[LcGameEntity]:
-    def apply(
-        source: LcEntity[LcGameEntity],
-        target: LcEntity[LcGameEntity]
-    ): Unit =
-      target.gameEntity.maybeHealth.foreach(h => h.value += amount)
+    def apply(source: LcGameEntity, target: LcGameEntity): Unit =
+      target.maybeHealth.foreach(h => h.value += amount)
 
   /** The game-specific effect reader: a single-key object whose key names the effect and whose
     * value is the amount, e.g. `{ DealDamage = 25 }`. The effect set is inherently app-specific
