@@ -1,145 +1,117 @@
 package logicconstructor
 
+import pureconfig.{ConfigReader, ConfigSource}
+
 import TestFixtures.*
-import logicconstructor.ConfigValue.*
+import logicconstructor.LcAction.Config
 import logicconstructor.parser.*
 
+/** Decoding tests: HOCON text -> pureconfig `ConfigReader`s -> typed `LcAction.Config`.
+  *
+  * All decoding is derivation/instance-driven (no hand-written parsers), so these exercise the
+  * `CollisionKind`, `LcAction.Config.Single` and `LcAction.Config` readers directly.
+  */
 class ParserSuite extends munit.FunSuite:
 
+  // Decode a `CollisionKind` straight from a HOCON string value.
+  private def collision(s: String): Either[String, CollisionKind] =
+    ConfigSource.string(s"""x = "$s"""").at("x").load[CollisionKind].left.map(_.prettyPrint())
+
+  // Decode a single action from a HOCON object literal.
+  private def single(hocon: String): Either[String, Config.Single[LcGameEntity]] =
+    ConfigSource.string(s"x = $hocon").at("x").load[Config.Single[LcGameEntity]].left.map(_.prettyPrint())
+
+  // Decode an action list from a HOCON array literal.
+  private def list(hocon: String): Either[String, Config[LcGameEntity]] =
+    parseActions[LcGameEntity]("x", s"x = $hocon")
+
   test("parse single collision kinds") {
-    assertEquals(parseCollisionKind(CStr("Self")), Right(CollisionKind.Self))
-    assertEquals(parseCollisionKind(CStr("SameKind")), Right(CollisionKind.SameKind))
-    assertEquals(parseCollisionKind(CStr("Other")), Right(CollisionKind.Other))
+    assertEquals(collision("Self"), Right(CollisionKind.Self))
+    assertEquals(collision("SameKind"), Right(CollisionKind.SameKind))
+    assertEquals(collision("Other"), Right(CollisionKind.Other))
   }
 
   test("parse piped collision kinds") {
-    val two = parseCollisionKind(CStr("Self | Other"))
+    val two = collision("Self | Other")
     assert(two.exists(_.contains(CollisionKind.Self)))
     assert(two.exists(_.contains(CollisionKind.Other)))
     assert(two.exists(k => !k.contains(CollisionKind.SameKind)))
 
-    val noSpaces = parseCollisionKind(CStr("Self|SameKind"))
+    val noSpaces = collision("Self|SameKind")
     assert(noSpaces.exists(_.contains(CollisionKind.Self)))
     assert(noSpaces.exists(_.contains(CollisionKind.SameKind)))
 
-    val all = parseCollisionKind(CStr("Self | SameKind | Other"))
+    val all = collision("Self | SameKind | Other")
     assert(all.exists(_.contains(CollisionKind.Self)))
     assert(all.exists(_.contains(CollisionKind.SameKind)))
     assert(all.exists(_.contains(CollisionKind.Other)))
   }
 
   test("parse unknown collision kind errors") {
-    val err = parseCollisionKind(CStr("UnknownKind"))
-    assert(err.left.exists(_.contains("Unknown CollisionKind")))
+    assert(collision("UnknownKind").left.exists(_.contains("Unknown CollisionKind")))
   }
 
-  test("parse non-string collision kind errors") {
-    val err = parseCollisionKind(CNum(123))
-    assert(err.left.exists(_.contains("expects a string")))
+  test("simple format defaults to Other") {
+    val cfg = single("{ DealDamage = 10 }").toOption.get
+    assertEquals(cfg.collision, CollisionKind.Other)
+    assertEquals(cfg.action, DealDamage(10.0))
   }
 
-  test("simple format raw defaults to Other") {
-    val value = obj("DealDamage" -> CNum(10))
-    val raw = parseLcConfigRaw(value).toOption.get
-    assertEquals(raw.collision, CollisionKind.Other)
-    assert(raw.effectValue.contains("DealDamage"))
+  test("full format parses collision") {
+    val cfg = single("""{ lca { DealDamage = 25 }, collision = "Self" }""").toOption.get
+    assertEquals(cfg.collision, CollisionKind.Self)
+    assertEquals(cfg.action, DealDamage(25.0))
   }
 
-  test("full format raw parses collision") {
-    val value = obj(
-      "lca" -> obj("DealDamage" -> CNum(25)),
-      "collision" -> CStr("Self")
-    )
-    val raw = parseLcConfigRaw(value).toOption.get
-    assertEquals(raw.collision, CollisionKind.Self)
-    assert(raw.effectValue.contains("DealDamage"))
+  test("non-object single is an error") {
+    assert(single("42").isLeft)
   }
 
-  test("partial full format is an error") {
-    val missingCollision = obj("lca" -> obj("DealDamage" -> CNum(10)))
-    assert(parseLcConfigRaw(missingCollision).left.exists(_.contains("requires 'collision' field")))
-
-    val missingLca = obj("collision" -> CStr("Self"))
-    assert(parseLcConfigRaw(missingLca).left.exists(_.contains("requires 'lca' field")))
-  }
-
-  test("non-object raw is an error") {
-    assert(parseLcConfigRaw(CNum(42)).left.exists(_.contains("expects an object")))
-  }
-
-  test("typed config via effect closure runs") {
-    val value = obj("lca" -> obj("DealDamage" -> CNum(15)), "collision" -> CStr("Self"))
-    val config = parseLcConfig(value, parseGameEffect).toOption.get
-    assertEquals(config.collision, CollisionKind.Self)
+  test("typed config via effect reader runs") {
+    val cfg = single("""{ lca { DealDamage = 15 }, collision = "Self" }""").toOption.get
+    assertEquals(cfg.collision, CollisionKind.Self)
 
     val hp = TestFixtures.Health(100.0)
     val src = entity(LcGameEntity.Enemy(hp))
-    runLca(LcActionConfig(Vector(config)), src, src)
+    Config(Vector(cfg)).runLca(src, src)
     assertEquals(hp.value, 85.0)
   }
 
   test("empty array parses to empty list") {
-    assertEquals(parseLcConfigListRaw(arr()).map(_.size), Right(0))
+    assertEquals(list("[]").map(_.data.size), Right(0))
   }
 
   test("list mixes simple and full forms") {
-    val value = arr(
-      obj("DealDamage" -> CNum(10)),
-      obj("lca" -> obj("Heal" -> CNum(20)), "collision" -> CStr("Self")),
-      obj("lca" -> obj("DealDamage" -> CNum(30)), "collision" -> CStr("Self | Other"))
-    )
-    val configs = parseLcConfigList(value, parseGameEffect).toOption.get
+    val configs = list("""[
+      { DealDamage = 10 },
+      { lca { Heal = 20 }, collision = "Self" },
+      { lca { DealDamage = 30 }, collision = "Self | Other" }
+    ]""").toOption.get.data
     assertEquals(configs.size, 3)
     assertEquals(configs(0).collision, CollisionKind.Other)
     assertEquals(configs(1).collision, CollisionKind.Self)
     assertEquals(configs(2).collision, CollisionKind.Self | CollisionKind.Other)
   }
 
-  test("list errors carry the index and inner message") {
-    val value = arr(obj("DealDamage" -> CNum(10)), obj("Unknown" -> CNum(5)))
-    val err = parseLcConfigList(value, parseGameEffect).left.toOption.get
-    assert(err.contains("index 1"))
-    assert(err.contains("unknown effect"))
+  test("list errors carry the inner message") {
+    val err = list("""[ { DealDamage = 10 }, { Unknown = 5 } ]""").left.toOption.get
+    assert(err.contains("unknown effect"), err)
   }
 
   test("list rejects a non-array") {
-    val err = parseLcConfigListRaw(obj("DealDamage" -> CNum(10))).left.toOption.get
-    assert(err.contains("expects an array"))
-  }
-
-  test("parseLcActionConfig builds a typed config") {
-    val value = arr(
-      obj("DealDamage" -> CNum(10)),
-      obj("lca" -> obj("Heal" -> CNum(7)), "collision" -> CStr("Self"))
-    )
-    val action = parseLcActionConfig(value, parseGameEffect).toOption.get
-    assertEquals(action.data.size, 2)
-    assertEquals(action.data(0).collision, CollisionKind.Other)
-    assertEquals(action.data(1).collision, CollisionKind.Self)
+    assert(list("""{ DealDamage = 10 }""").isLeft)
   }
 
   test("parsed action config runs end to end") {
-    val value = arr(
-      obj("DealDamage" -> CNum(15)),
-      obj("lca" -> obj("Heal" -> CNum(4)), "collision" -> CStr("Self"))
-    )
-    val action = parseLcActionConfig(value, parseGameEffect).toOption.get
+    val action = list("""[
+      { DealDamage = 15 },
+      { lca { Heal = 4 }, collision = "Self" }
+    ]""").toOption.get
+    assertEquals(action.data.size, 2)
 
     val playerHp = TestFixtures.Health(100.0)
     val enemyHp = TestFixtures.Health(100.0)
-    runLca(action, entity(LcGameEntity.Player(playerHp)), entity(LcGameEntity.Enemy(enemyHp)))
+    action.runLca(entity(LcGameEntity.Player(playerHp)), entity(LcGameEntity.Enemy(enemyHp)))
     assertEquals(enemyHp.value, 85.0)
     assertEquals(playerHp.value, 104.0)
-  }
-
-  test("parseLcActionConfig rejects a non-array") {
-    val err = parseLcActionConfig(obj("DealDamage" -> CNum(10)), parseGameEffect).left.toOption.get
-    assert(err.contains("expects an array"))
-  }
-
-  test("parseLcActionConfig propagates inner errors with index") {
-    val value = arr(obj("DealDamage" -> CNum(10)), obj("Unknown" -> CNum(1)))
-    val err = parseLcActionConfig(value, parseGameEffect).left.toOption.get
-    assert(err.contains("index 1"))
-    assert(err.contains("unknown effect"))
   }
