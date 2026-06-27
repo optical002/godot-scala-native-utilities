@@ -1,0 +1,3 @@
+[gd_scene format=3 uid="uid://b7cfgwatch0001"]
+
+[node name="ConfigWatcherNode" type="ConfigWatcherNode" unique_id=918273645]

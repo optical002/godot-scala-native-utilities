@@ -63,7 +63,7 @@ def godotLibrary(name0: String): Project =
 
 // Aggregating root — groups the libraries; never published itself.
 lazy val root = (project in file("."))
-  .aggregate(initSystem, rx, logicConstructor)
+  .aggregate(initSystem, rx, logicConstructor, godotHoccon)
   .settings(
     name := "utilities",
     publish / skip := true
@@ -78,6 +78,25 @@ lazy val initSystem = godotLibrary("init-system")
 lazy val rx = godotLibrary("rx")
   .settings(
     libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
+    testFrameworks += new TestFramework("munit.Framework")
+  )
+
+// godot-hoccon (package `godothoccon`): a game-agnostic config layer ported from
+// the Rust `framework` crate (survivor-game) — HOCON config value types + the
+// id/registry directory pattern. HOCON decoding is via the Scala-Native
+// pureconfig fork (same backend as logic-constructor); the reactive registry
+// cell reuses the `rx` library. The `tracing` telemetry layer and the Godot
+// `prefab`/`curve` parsers were NOT ported (the binding lacks the required
+// Tween/export APIs).
+lazy val godotHoccon = godotLibrary("godot-hoccon")
+  .dependsOn(rx)
+  .settings(
+    resolvers += "pureconfig-native" at
+      "https://raw.githubusercontent.com/optical002/pureconfig/maven/maven",
+    resolvers += "shocon-native" at
+      "https://raw.githubusercontent.com/optical002/shocon/maven/maven",
+    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native",
     libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
     testFrameworks += new TestFramework("munit.Framework")
   )
