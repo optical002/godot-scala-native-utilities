@@ -1,8 +1,6 @@
 package initsystem
 
 import gdext.classes.{InputEvent, Node}
-import gdext.internal.engine.Gd
-import gdext.api.GodotPrint
 
 class InitSystemNode extends Node:
 
@@ -27,14 +25,14 @@ class InitSystemNode extends Node:
     ctx.forEach(_.exitTree())
     ctx.processPending()
 
-  override def _input(event: Gd[InputEvent]): Unit =
+  override def _input(event: InputEvent): Unit =
     ctx.forEach(_.input(event))
 
-  override def _shortcut_input(event: Gd[InputEvent]): Unit =
+  override def _shortcut_input(event: InputEvent): Unit =
     ctx.forEach(_.shortcutInput(event))
 
-  override def _unhandled_input(event: Gd[InputEvent]): Unit =
+  override def _unhandled_input(event: InputEvent): Unit =
     ctx.forEach(_.unhandledInput(event))
 
-  override def _unhandled_key_input(event: Gd[InputEvent]): Unit =
+  override def _unhandled_key_input(event: InputEvent): Unit =
     ctx.forEach(_.unhandledKeyInput(event))

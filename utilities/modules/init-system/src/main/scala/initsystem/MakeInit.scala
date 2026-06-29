@@ -1,6 +1,5 @@
 package initsystem
 
-import gdext.internal.engine.Gd
 import gdext.internal.register.GodotScriptClass
 
 trait MakeInit[I <: InitBase, P]:

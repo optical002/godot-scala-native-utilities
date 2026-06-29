@@ -1,18 +1,17 @@
 package logicconstructor
 
-import pureconfig.ConfigReader
-import pureconfig.error.CannotConvert
+import logicconstructor.ConfigValue.{CNum, CObj}
 
 object TestFixtures:
 
   final class Health(var value: Double)
 
-  enum LcGameEntity extends LcEntity.Type:
+  enum LcGameEntity extends LcEntityType:
     case Player(hp: Health)
     case Enemy(hp: Health)
     case Npc(age: Short)
 
-    def typeId: LcEntity.Type.Id = this match
+    def typeId: LcEntityTypeId = this match
       case _: Player => 1
       case _: Enemy  => 2
       case _: Npc    => 3
@@ -24,31 +23,32 @@ object TestFixtures:
 
   import LcGameEntity.*
 
+  def entity(e: LcGameEntity): LcEntity[LcGameEntity] = LcEntity(e)
+
   final case class DealDamage(amount: Double) extends LcAction[LcGameEntity]:
-    def apply(source: LcGameEntity, target: LcGameEntity): Unit =
-      target.maybeHealth.foreach(h => h.value -= amount)
+    def apply(
+        source: LcEntity[LcGameEntity],
+        target: LcEntity[LcGameEntity]
+    ): Unit =
+      target.gameEntity.maybeHealth.foreach(h => h.value -= amount)
 
   final case class Heal(amount: Double) extends LcAction[LcGameEntity]:
-    def apply(source: LcGameEntity, target: LcGameEntity): Unit =
-      target.maybeHealth.foreach(h => h.value += amount)
+    def apply(
+        source: LcEntity[LcGameEntity],
+        target: LcEntity[LcGameEntity]
+    ): Unit =
+      target.gameEntity.maybeHealth.foreach(h => h.value += amount)
 
-  /** The game-specific effect reader: a single-key object whose key names the effect and whose
-    * value is the amount, e.g. `{ DealDamage = 25 }`. The effect set is inherently app-specific
-    * (it produces concrete `LcAction` instances), so this reader lives with the game's fixtures —
-    * the library itself stays fully derivation-driven (see `LcAction.Config` / `CollisionKind`).
-    */
-  given ConfigReader[LcAction[LcGameEntity]] =
-    ConfigReader.fromCursor { cur =>
-      for
-        obj <- cur.asObjectCursor
-        name <- obj.keys.toList match
-          case single :: Nil => Right(single)
-          case other =>
-            cur.failed(CannotConvert(other.mkString("{", ",", "}"), "LcAction", "expected a single effect key"))
-        amount <- obj.atKey(name).flatMap(_.asDouble)
-        action <- name match
-          case "DealDamage" => Right(DealDamage(amount))
-          case "Heal"       => Right(Heal(amount))
-          case unknown      => cur.failed(CannotConvert(unknown, "LcAction", "unknown effect"))
-      yield action
-    }
+  val parseGameEffect: parser.ParseEffect[LcGameEntity] = value =>
+    value match
+      case CObj(fields) if fields.size == 1 =>
+        val (name, inner) = fields.head
+        inner match
+          case CNum(amount) =>
+            name match
+              case "DealDamage" => Right(DealDamage(amount))
+              case "Heal"       => Right(Heal(amount))
+              case other        => Left(s"unknown effect: $other")
+          case _ => Left(s"$name expects a number")
+      case CObj(fields) => Left(s"expected single key, got ${fields.size}")
+      case _            => Left(s"expected object, got $value")

@@ -2,7 +2,7 @@ package initsystem
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import gdext.api.GodotPrint
+import gdext.api.Gd
 
 trait InitContext:
   def getInit(id: InitId): Option[InitBase]
@@ -24,7 +24,7 @@ object InitContext:
 
     def addInit(parentId: InitId, id: InitId, init: InitBase): Unit =
       if pendingAddition.contains(id) then
-        GodotPrint.printWarning(
+        Gd.printWarning(
           s"[init-system] Trying to add a second time the same init with id: ${id.value}"
         )
       else
@@ -32,7 +32,7 @@ object InitContext:
 
     def free(id: InitId): Unit =
       if !pendingRemoval.add(id) then
-        GodotPrint.printWarning(
+        Gd.printWarning(
           s"[init-system] Trying to free a second time the same init with id: ${id.value}"
         )
 
@@ -41,7 +41,7 @@ object InitContext:
 
       for (id, PendingAddition(parentId, init)) <- pendingAddition do
         if initCollection.contains(id) then
-          GodotPrint.printWarning(
+          Gd.printWarning(
             s"[init-system] Trying to add init which already exists inside 'initCollection' with id ${id.value}"
           )
         else
