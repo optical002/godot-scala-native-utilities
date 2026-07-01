@@ -9,6 +9,8 @@ import logicconstructor.parser.*
   */
 class HoconParserSuite extends munit.FunSuite:
 
+  given Unit = ()
+
   test("parse HOCON scalars into ConfigValue") {
     assertEquals(parseHocon("""x = 10"""), Right(obj("x" -> CNum(10))))
     assertEquals(parseHocon("""x = true"""), Right(obj("x" -> CBool(true))))

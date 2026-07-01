@@ -19,13 +19,13 @@ def parseLcConfigListRaw(value: ConfigValue): Either[String, Seq[LcConfigRaw]] =
     case _ =>
       Left(s"LcaConfig list parser expects an array, got: $value")
 
-def parseLcConfigList[T <: LcEntityType](
+def parseLcConfigList[T <: LcEntityType, Ctx](
     value: ConfigValue,
-    parseEffect: ParseEffect[T]
-): Either[String, Seq[LcSingleActionConfig[T]]] =
+    parseEffect: ParseEffect[T, Ctx]
+): Either[String, Seq[LcSingleActionConfig[T, Ctx]]] =
   value match
     case CArr(items) =>
-      items.zipWithIndex.foldLeft[Either[String, Vector[LcSingleActionConfig[T]]]](
+      items.zipWithIndex.foldLeft[Either[String, Vector[LcSingleActionConfig[T, Ctx]]]](
         Right(Vector.empty)
       ) { case (acc, (item, index)) =>
         for

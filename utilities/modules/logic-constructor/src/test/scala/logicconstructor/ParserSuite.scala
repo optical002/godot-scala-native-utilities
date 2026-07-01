@@ -6,6 +6,8 @@ import logicconstructor.parser.*
 
 class ParserSuite extends munit.FunSuite:
 
+  given Unit = ()
+
   test("parse single collision kinds") {
     assertEquals(parseCollisionKind(CStr("Self")), Right(CollisionKind.Self))
     assertEquals(parseCollisionKind(CStr("SameKind")), Right(CollisionKind.SameKind))

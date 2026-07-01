@@ -21,6 +21,11 @@ lazy val game = (project in file("."))
     resolvers += "shocon-native" at
       "https://raw.githubusercontent.com/optical002/shocon/maven/maven",
     libraryDependencies +=
-      "io.github.optical002" %%% "godot-hoccon" % "0.1.1-SNAPSHOT"
+      "io.github.optical002" %%% "godot-hoccon" % "0.1.1-SNAPSHOT",
+    // logic-constructor (package `logicconstructor`): the data-driven action layer
+    // plus the generic buff lifecycle (logicconstructor.buffs). The buff demo
+    // (game.buffs + BuffDemoNode) exercises it against a harness-local stat model.
+    libraryDependencies +=
+      "io.github.optical002" %%% "logic-constructor" % "0.1.1-SNAPSHOT"
   )
 

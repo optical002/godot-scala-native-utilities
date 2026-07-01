@@ -25,21 +25,23 @@ object TestFixtures:
 
   def entity(e: LcGameEntity): LcEntity[LcGameEntity] = LcEntity(e)
 
-  final case class DealDamage(amount: Double) extends LcAction[LcGameEntity]:
-    def apply(
+  // The test actions need no ambient capability, so they use a `Unit` ctx
+  // (each suite brings `given Unit = ()` into scope to run them).
+  final case class DealDamage(amount: Double) extends LcAction[LcGameEntity, Unit]:
+    def run(
         source: LcEntity[LcGameEntity],
         target: LcEntity[LcGameEntity]
-    ): Unit =
+    )(using ctx: Unit): Unit =
       target.gameEntity.maybeHealth.foreach(h => h.value -= amount)
 
-  final case class Heal(amount: Double) extends LcAction[LcGameEntity]:
-    def apply(
+  final case class Heal(amount: Double) extends LcAction[LcGameEntity, Unit]:
+    def run(
         source: LcEntity[LcGameEntity],
         target: LcEntity[LcGameEntity]
-    ): Unit =
+    )(using ctx: Unit): Unit =
       target.gameEntity.maybeHealth.foreach(h => h.value += amount)
 
-  val parseGameEffect: parser.ParseEffect[LcGameEntity] = value =>
+  val parseGameEffect: parser.ParseEffect[LcGameEntity, Unit] = value =>
     value match
       case CObj(fields) if fields.size == 1 =>
         val (name, inner) = fields.head

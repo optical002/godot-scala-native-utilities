@@ -2,7 +2,7 @@ package initsystemtest.nested
 
 import initsystem.*
 import gdext.classes.Node
-import gdext.api.GodotPrint
+import gdext.api.Gd
 
 // Spawns enemy inits over time from `process`. The key trick: `process` is defined
 // INSIDE `initInner`, so it captures `initInner`'s `given ParentId` (this spawner's
@@ -16,7 +16,7 @@ case class Spawner(
 ) extends Node with MakeInit[Spawner.Init, Unit]:
   def initInner(params: Unit)(using ParentId, InitContext): Spawner.Init =
     new Spawner.Init:
-      GodotPrint.print(s"[Spawner] created (id=${selfId.value})")
+      Gd.print(s"[Spawner] created (id=${selfId.value})")
 
       private var elapsed = 0.0
       private var spawned = 0
@@ -31,16 +31,16 @@ case class Spawner(
               elapsed = 0.0
               val e = enemy.init(()) // child of this spawner (captured ParentId)
               spawned += 1
-              GodotPrint.print(s"[Spawner] spawned enemy #$spawned (id=${e.selfId.value})")
+              Gd.print(s"[Spawner] spawned enemy #$spawned (id=${e.selfId.value})")
           else
-            GodotPrint.print(
+            Gd.print(
               s"[Spawner] freeing self; expect $spawned enemies (+ rig + health) to cascade-free"
             )
             done = true
             free()
 
       override def onFree(): Unit =
-        GodotPrint.print(s"[Spawner] onFree (id=${selfId.value})")
+        Gd.print(s"[Spawner] onFree (id=${selfId.value})")
 
 object Spawner:
   trait Init extends InitBase

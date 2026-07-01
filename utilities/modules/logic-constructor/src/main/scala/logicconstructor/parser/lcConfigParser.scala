@@ -3,7 +3,7 @@ package parser
 
 import logicconstructor.ConfigValue.CObj
 
-type ParseEffect[T <: LcEntityType] = ConfigValue => Either[String, LcAction[T]]
+type ParseEffect[T <: LcEntityType, Ctx] = ConfigValue => Either[String, LcAction[T, Ctx]]
 
 def parseLcConfigRaw(value: ConfigValue): Either[String, LcConfigRaw] =
   value match
@@ -22,10 +22,10 @@ def parseLcConfigRaw(value: ConfigValue): Either[String, LcConfigRaw] =
     case _ =>
       Left(s"LcaConfig parser expects an object, got: $value")
 
-def parseLcConfig[T <: LcEntityType](
+def parseLcConfig[T <: LcEntityType, Ctx](
     value: ConfigValue,
-    parseEffect: ParseEffect[T]
-): Either[String, LcSingleActionConfig[T]] =
+    parseEffect: ParseEffect[T, Ctx]
+): Either[String, LcSingleActionConfig[T, Ctx]] =
   for
     raw <- parseLcConfigRaw(value)
     effect <- parseEffect(raw.effectValue)

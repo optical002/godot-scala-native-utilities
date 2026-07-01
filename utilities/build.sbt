@@ -63,7 +63,7 @@ def godotLibrary(name0: String): Project =
 
 // Aggregating root — groups the libraries; never published itself.
 lazy val root = (project in file("."))
-  .aggregate(initSystem, rx, logicConstructor, godotHoccon)
+  .aggregate(initSystem, rx, logicConstructor, godotHoccon, prefabs)
   .settings(
     name := "utilities",
     publish / skip := true
@@ -86,9 +86,12 @@ lazy val rx = godotLibrary("rx")
 // the Rust `framework` crate (survivor-game) — HOCON config value types + the
 // id/registry directory pattern. HOCON decoding is via the Scala-Native
 // pureconfig fork (same backend as logic-constructor); the reactive registry
-// cell reuses the `rx` library. The `tracing` telemetry layer and the Godot
-// `prefab`/`curve` parsers were NOT ported (the binding lacks the required
-// Tween/export APIs).
+// cell reuses the `rx` library. It also depends on the `gdext` binding (added by
+// `godotLibrary` for every module here), so config types may reference Godot
+// builtins (`gdext.builtin.Color`, …). The `tracing` telemetry layer was not
+// ported; the Godot tween `curve` parser IS ported here ([[TweenCurveConfig]],
+// evaluating Godot's easing equations directly), and the `prefab` flow lives in
+// its own `prefabs` module (below).
 lazy val godotHoccon = godotLibrary("godot-hoccon")
   .dependsOn(rx)
   .settings(
@@ -101,7 +104,28 @@ lazy val godotHoccon = godotLibrary("godot-hoccon")
     testFrameworks += new TestFramework("munit.Framework")
   )
 
+// prefabs (package `prefabs`): the game-agnostic typed-prefab flow extracted from
+// the survivor-game `framework` — the `Prefabs` resource (a `Dictionary[String,
+// PackedScene]`), the `Prefab[T]`/`PrefabGroup[T]` pureconfig readers, and the
+// `ParseCtx` carrying the generated `path → root type` index. Needs the binding
+// (PackedScene/Resource/Dict/Tres + the `PackedScene.instantiateAsChild` helper)
+// and the pureconfig fork; reuses nothing from godot-hoccon, so it depends only
+// on the binding (via `godotLibrary`). The companion codegen that emits
+// `prefabs.conf` from `prefabs.tres` is provided by the sbt plugin (see
+// language-binding-scala/sbt-godot-scala-native).
+lazy val prefabs = godotLibrary("prefabs")
+  .settings(
+    resolvers += "pureconfig-native" at
+      "https://raw.githubusercontent.com/optical002/pureconfig/maven/maven",
+    resolvers += "shocon-native" at
+      "https://raw.githubusercontent.com/optical002/shocon/maven/maven",
+    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native",
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
+    testFrameworks += new TestFramework("munit.Framework")
+  )
+
 lazy val logicConstructor = godotLibrary("logic-constructor")
+  .dependsOn(godotHoccon)
   .settings(
     // Scala-Native fork of pureconfig (optical002/pureconfig, `maven` branch; source on
     // scala-native-port), hosted as a raw-git Maven repo. Provides typed HOCON decoding via

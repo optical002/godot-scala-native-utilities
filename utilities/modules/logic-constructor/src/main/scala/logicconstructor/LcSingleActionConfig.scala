@@ -1,7 +1,7 @@
 package logicconstructor
 
-final case class LcSingleActionConfig[T <: LcEntityType](
-    action: LcAction[T],
+final case class LcSingleActionConfig[T <: LcEntityType, Ctx](
+    action: LcAction[T, Ctx],
     collision: CollisionKind
 )
 

@@ -1,0 +1,3 @@
+[gd_scene format=3 uid="uid://b7buffdemo0001"]
+
+[node name="BuffDemoNode" type="BuffDemoNode" unique_id=556677889]

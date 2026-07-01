@@ -1,9 +1,9 @@
 package logicconstructor
 
-final case class LcSourceWithAction[T <: LcEntityType](
+final case class LcSourceWithAction[T <: LcEntityType, Ctx](
     source: LcEntity[T],
-    actionConfig: LcActionConfig[T]
+    actionConfig: LcActionConfig[T, Ctx]
 ):
 
-  def run(target: LcEntity[T]): Unit =
+  def run(target: LcEntity[T])(using ctx: Ctx): Unit =
     runLca(actionConfig, source, target)

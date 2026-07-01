@@ -5,6 +5,9 @@ import TestFixtures.LcGameEntity.*
 
 class RunLcaSuite extends munit.FunSuite:
 
+  // The test actions ignore the ctx, so a `Unit` ctx suffices.
+  given Unit = ()
+
   test("predefined actions fire by collision kind") {
     val playerHp = Health(100.0)
     val enemyHp = Health(100.0)
@@ -83,6 +86,6 @@ class RunLcaSuite extends munit.FunSuite:
 
   test("empty / dummy config does nothing") {
     val hp = Health(100.0)
-    runLca(LcActionConfig.dummy[LcGameEntity], entity(Player(hp)), entity(Enemy(Health(100.0))))
+    runLca(LcActionConfig.dummy[LcGameEntity, Unit], entity(Player(hp)), entity(Enemy(Health(100.0))))
     assertEquals(hp.value, 100.0)
   }

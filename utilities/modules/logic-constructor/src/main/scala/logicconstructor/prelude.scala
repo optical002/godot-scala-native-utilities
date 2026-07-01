@@ -23,3 +23,12 @@ object prelude:
     parseLcConfigList,
     parseLcActionConfig
   }
+  export logicconstructor.buffs.{
+    ReApplyBehaviour,
+    StackExpiry,
+    BuffSpec,
+    ActiveBuff,
+    ActiveBuffs,
+    TickResult,
+    BuffLifecycle
+  }

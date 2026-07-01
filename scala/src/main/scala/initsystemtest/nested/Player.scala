@@ -2,7 +2,7 @@ package initsystemtest.nested
 
 import initsystem.*
 import gdext.classes.Node
-import gdext.api.GodotPrint
+import gdext.api.Gd
 
 // A single (non-prototype) entity. The children created inside `initInner`
 // auto-parent to this Player init via the `given ParentId` the framework injects,
@@ -15,10 +15,10 @@ case class Player(
     HealthComponent(100).init(()) // child of Player
 
     new Player.Init:
-      GodotPrint.print(s"[Player] created (id=${selfId.value})")
+      Gd.print(s"[Player] created (id=${selfId.value})")
 
       override def onFree(): Unit =
-        GodotPrint.print(s"[Player] onFree (id=${selfId.value})")
+        Gd.print(s"[Player] onFree (id=${selfId.value})")
 
 object Player:
   trait Init extends InitBase

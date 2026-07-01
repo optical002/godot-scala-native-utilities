@@ -1,7 +1,7 @@
 package game.config
 
 import gdext.classes.Node
-import gdext.api.GodotPrint
+import gdext.api.Gd
 
 import godothoccon.ConfigWatcher
 import rx.{DisposableTracker, RxRef, Tracker}
@@ -43,10 +43,10 @@ final class ConfigWatcherNode extends Node:
   override def _ready(): Unit =
     ConfigLoader.load() match
       case Left(err) =>
-        GodotPrint.print(s"[config] failed to load initial config: $err")
+        Gd.print(s"[config] failed to load initial config: $err")
       case Right(initial) =>
         lastLogged = initial
-        GodotPrint.print(s"[config] loaded initial config from config/:\n${GameConfig.describe(initial)}")
+        Gd.print(s"[config] loaded initial config from config/:\n${GameConfig.describe(initial)}")
 
         val ref = RxRef(initial)
         config = Some(ref)
@@ -62,10 +62,10 @@ final class ConfigWatcherNode extends Node:
 
         ConfigWatcher.create(() => reload(ref)) match
           case Left(err) =>
-            GodotPrint.print(s"[config] could not start watcher: $err")
+            Gd.print(s"[config] could not start watcher: $err")
           case Right(w) =>
             watcher = Some(w)
-            GodotPrint.print("[config] watching config/ for changes...")
+            Gd.print("[config] watching config/ for changes...")
 
   override def _process(delta: Double): Unit =
     watcher.foreach(_.pollAndApply())
@@ -75,7 +75,7 @@ final class ConfigWatcherNode extends Node:
   private def reload(ref: RxRef[GameConfig]): Unit =
     ConfigLoader.load() match
       case Left(err) =>
-        GodotPrint.print(s"[config] reload failed, keeping previous config: $err")
+        Gd.print(s"[config] reload failed, keeping previous config: $err")
       case Right(next) =>
         ref.set(next)
 
@@ -83,7 +83,7 @@ final class ConfigWatcherNode extends Node:
     val changes = GameConfig.diff(lastLogged, next)
     lastLogged = next
     if changes.isEmpty then
-      GodotPrint.print("[config] reloaded — no field values changed")
+      Gd.print("[config] reloaded — no field values changed")
     else
       val body = changes.map((k, o, n) => s"  $k: $o -> $n").mkString("\n")
-      GodotPrint.print(s"[config] reloaded — ${changes.length} field(s) changed:\n$body")
+      Gd.print(s"[config] reloaded — ${changes.length} field(s) changed:\n$body")

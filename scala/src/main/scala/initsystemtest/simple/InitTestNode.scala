@@ -2,8 +2,7 @@ package initsystemtest.simple
 
 import initsystem.*
 import gdext.classes.{InputEvent, Node}
-import gdext.internal.engine.Gd
-import gdext.api.GodotPrint
+import gdext.api.Gd
 
 case class InitTestNode(
   var gold: Int
@@ -14,7 +13,7 @@ case class InitTestNode(
     new InitTestNode.Init:
       val totalGold = gold + params 
 
-      override def process(delta: Double): Unit = GodotPrint.print(s"from the process: $delta")
+      override def process(delta: Double): Unit = Gd.print(s"from the process: $delta")
 
 object InitTestNode:
   trait Init extends InitBase:

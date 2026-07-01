@@ -1,5 +1,5 @@
 package logicconstructor
 
-trait LcAction[T <: LcEntityType]:
+trait LcAction[T <: LcEntityType, Ctx]:
 
-  def apply(source: LcEntity[T], target: LcEntity[T]): Unit
+  def run(source: LcEntity[T], target: LcEntity[T])(using ctx: Ctx): Unit
