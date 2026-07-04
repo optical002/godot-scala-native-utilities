@@ -1,7 +1,5 @@
 package godothoccon
 
-import scala.util.control.NonFatal
-
 import pureconfig.ConfigReader
 import pureconfig.error.CannotConvert
 
@@ -22,17 +20,17 @@ object Percentage:
   val Zero: Percentage = Percentage(0.0f)
   val Certain: Percentage = Percentage(1.0f)
 
+  def parse(raw: String): Either[String, Percentage] =
+    val s = raw.trim
+    if !s.endsWith("%") then Left(s"'$s' must end with '%' (e.g. \"80%\", \"14.5%\")")
+    else
+      s.stripSuffix("%").trim.replace(',', '.').toFloatOption match
+        case Some(percent) if percent >= 0.0f => Right(Percentage(percent / 100.0f))
+        case Some(_) => Left(s"'$s' must be at least 0%")
+        case None => Left(s"'$s' is not a valid percentage")
+
   given ConfigReader[Percentage] = ConfigReader.fromCursor: cur =>
     cur.asString.flatMap: raw =>
-      val s = raw.trim
-      if !s.endsWith("%") then
-        cur.failed(CannotConvert(raw, "Percentage", s"'$s' must end with '%' (e.g. \"80%\", \"14.5%\")"))
-      else
-        val digits = s.stripSuffix("%").trim.replace(',', '.')
-        try
-          val percent = digits.toFloat
-          if percent < 0.0f then cur.failed(CannotConvert(raw, "Percentage", s"'$s' must be at least 0%"))
-          else Right(Percentage(percent / 100.0f))
-        catch
-          case NonFatal(e) =>
-            cur.failed(CannotConvert(raw, "Percentage", s"'$s' is not a valid percentage: ${e.getMessage}"))
+      parse(raw) match
+        case Right(p) => Right(p)
+        case Left(msg) => cur.failed(CannotConvert(raw, "Percentage", msg))

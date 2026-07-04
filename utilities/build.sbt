@@ -30,7 +30,16 @@ inThisBuild(
     organization := "io.github.optical002",
     version := "0.1.1-SNAPSHOT",
     scalaVersion := scalaVersionStr,
-    licenses := Seq("MIT" -> url("https://opensource.org/licenses/MIT"))
+    licenses := Seq("MIT" -> url("https://opensource.org/licenses/MIT")),
+    // Scala-Native fork of pureconfig (optical002/pureconfig, `maven` branch; source on
+    // scala-native-port), hosted as a raw-git Maven repo. Provides typed HOCON decoding via
+    // `pureconfig.ConfigSource` + Scala 3 `derives ConfigReader`. Its backend is the SHocon
+    // `com.typesafe.config` shim (org.akka-js:shocon-parser), pulled in transitively — the shocon
+    // resolver is required so that transitive dependency can be located.
+    resolvers += "pureconfig-native" at
+      "https://raw.githubusercontent.com/optical002/pureconfig/maven/maven",
+    resolvers += "shocon-native" at
+      "https://raw.githubusercontent.com/optical002/shocon/maven/maven"
   )
 )
 
@@ -58,7 +67,9 @@ def godotLibrary(name0: String): Project =
           (Compile / resourceManaged).value / "gdext" / "godot-library.txt"
         IO.write(out, s"$name0\n")
         Seq(out)
-      }.taskValue
+      }.taskValue,
+      libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
+      testFrameworks += new TestFramework("munit.Framework")
     )
 
 // Aggregating root — groups the libraries; never published itself.
@@ -70,16 +81,10 @@ lazy val root = (project in file("."))
   )
 
 lazy val initSystem = godotLibrary("init-system")
-  .settings(
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
-    testFrameworks += new TestFramework("munit.Framework")
-  )
 
 lazy val rx = godotLibrary("rx")
   .settings(
-    libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
-    testFrameworks += new TestFramework("munit.Framework")
+    libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0"
   )
 
 // godot-hoccon (package `godothoccon`): a game-agnostic config layer ported from
@@ -95,13 +100,7 @@ lazy val rx = godotLibrary("rx")
 lazy val godotHoccon = godotLibrary("godot-hoccon")
   .dependsOn(rx)
   .settings(
-    resolvers += "pureconfig-native" at
-      "https://raw.githubusercontent.com/optical002/pureconfig/maven/maven",
-    resolvers += "shocon-native" at
-      "https://raw.githubusercontent.com/optical002/shocon/maven/maven",
-    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native",
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
-    testFrameworks += new TestFramework("munit.Framework")
+    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native"
   )
 
 // prefabs (package `prefabs`): the game-agnostic typed-prefab flow extracted from
@@ -115,29 +114,12 @@ lazy val godotHoccon = godotLibrary("godot-hoccon")
 // language-binding-scala/sbt-godot-scala-native).
 lazy val prefabs = godotLibrary("prefabs")
   .settings(
-    resolvers += "pureconfig-native" at
-      "https://raw.githubusercontent.com/optical002/pureconfig/maven/maven",
-    resolvers += "shocon-native" at
-      "https://raw.githubusercontent.com/optical002/shocon/maven/maven",
-    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native",
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
-    testFrameworks += new TestFramework("munit.Framework")
+    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native"
   )
 
 lazy val logicConstructor = godotLibrary("logic-constructor")
   .dependsOn(godotHoccon)
   .settings(
-    // Scala-Native fork of pureconfig (optical002/pureconfig, `maven` branch; source on
-    // scala-native-port), hosted as a raw-git Maven repo. Provides typed HOCON decoding via
-    // `pureconfig.ConfigSource` + Scala 3 `derives ConfigReader`. Its backend is the SHocon
-    // `com.typesafe.config` shim (org.akka-js:shocon-parser), pulled in transitively — the shocon
-    // resolver below is required so that transitive dependency can be located.
-    resolvers += "pureconfig-native" at
-      "https://raw.githubusercontent.com/optical002/pureconfig/maven/maven",
-    resolvers += "shocon-native" at
-      "https://raw.githubusercontent.com/optical002/shocon/maven/maven",
-    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native",
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.3" % Test,
-    testFrameworks += new TestFramework("munit.Framework")
+    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native"
   )
 
