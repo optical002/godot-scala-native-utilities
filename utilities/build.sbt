@@ -21,14 +21,21 @@ import scala.scalanative.sbtplugin.ScalaNativePlugin.autoImport._
 
 lazy val scalaVersionStr = "3.8.1"
 
-// The binding both these libraries and the game compile against. Pinned to the
-// locally-published version (see ../../godot-scala-native, `sbt publishLocal`).
-lazy val bindingVersion = "0.1.1-SNAPSHOT"
+// The binding both these libraries and the game compile against. On a JitPack
+// release build (JitPack exports VERSION=<tag>) we pin the released binding;
+// locally we use the -SNAPSHOT published by `sbt publishLocal` in
+// ../../godot-scala-native (same coordinates, only the version differs).
+lazy val bindingVersion =
+  if (sys.env.contains("VERSION")) "0.1.1" else "0.1.1-SNAPSHOT"
 
 inThisBuild(
   Seq(
-    organization := "io.github.optical002",
-    version := "0.1.1-SNAPSHOT",
+    // Publishing goes through JitPack (repo-root jitpack.yml runs
+    // `sbt publishM2` on a pushed plain-semver tag). The organization is the
+    // exact JitPack group for this repo, so publishLocal yields the same
+    // coordinates as the released artifacts.
+    organization := "com.github.optical002.godot-scala-native-utilities",
+    version := sys.env.getOrElse("VERSION", "0.1.1-SNAPSHOT"),
     scalaVersion := scalaVersionStr,
     licenses := Seq("MIT" -> url("https://opensource.org/licenses/MIT")),
     // Scala-Native fork of pureconfig (optical002/pureconfig, `maven` branch; source on
@@ -39,7 +46,11 @@ inThisBuild(
     resolvers += "pureconfig-native" at
       "https://raw.githubusercontent.com/optical002/pureconfig/maven/maven",
     resolvers += "shocon-native" at
-      "https://raw.githubusercontent.com/optical002/shocon/maven/maven"
+      "https://raw.githubusercontent.com/optical002/shocon/maven/maven",
+    // Released `scala-native-gdextension` binding artifacts (non-SNAPSHOT
+    // bindingVersion, e.g. on a JitPack build of this repo) resolve from
+    // JitPack; inert for local -SNAPSHOT dev (local ivy wins).
+    resolvers += "jitpack" at "https://jitpack.io"
   )
 )
 
@@ -56,7 +67,7 @@ def godotLibrary(name0: String): Project =
       // The Godot language binding. `.cross(ScalaNativeCrossVersion.binary)` is
       // exactly what `%%%` expands to (applies the `_native0.5_3` suffix).
       libraryDependencies +=
-        ("io.github.optical002" % "scala-native-gdextension" % bindingVersion)
+        ("com.github.optical002.godot-scala-native" % "scala-native-gdextension" % bindingVersion)
           .cross(ScalaNativeCrossVersion.binary),
       // Marker resource: its presence in this library's MAIN jar tells a
       // consuming game project's plugin "scan my sources and auto-register my

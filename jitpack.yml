@@ -1,0 +1,13 @@
+# JitPack build (https://jitpack.io/#optical002/godot-scala-native-utilities).
+#
+# Push a plain semver tag (e.g. `0.1.1`) and JitPack builds it on demand,
+# serving every library module under the group
+# `com.github.optical002.godot-scala-native-utilities`:
+#   init-system, rx, godot-hoccon, prefabs, logic-constructor
+# (all with the `_native0.5_3` Scala Native cross-suffix).
+# The sbt build reads JitPack's VERSION env var as the version and pins the
+# `scala-native-gdextension` binding to its released JitPack artifact.
+jdk:
+  - openjdk17
+install:
+  - cd utilities && sbt publishM2
