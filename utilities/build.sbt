@@ -85,10 +85,28 @@ def godotLibrary(name0: String): Project =
 
 // Aggregating root — groups the libraries; never published itself.
 lazy val root = (project in file("."))
-  .aggregate(initSystem, rx, logicConstructor, godotHoccon, prefabs)
+  .aggregate(initSystem, rx, logicConstructor, godotHoccon, prefabs, sbtGodotHoccon)
   .settings(
     name := "utilities",
     publish / skip := true
+  )
+
+// The sbt plugin owning the HOCON codegen (prefabs.conf, *-ids.conf,
+// animations.conf) a consuming game runs at build time. Pure JVM (Scala 2.12,
+// sbt 1.x) — NOT a godot library: no ScalaNativePlugin, no binding dependency.
+// It lives here (not in the godot-scala-native binding repo) because prefab/
+// hocon config generation is a utilities concern; the binding stays free of it.
+lazy val sbtGodotHoccon = (project in file("modules/sbt-godot-hoccon"))
+  .enablePlugins(SbtPlugin)
+  .settings(
+    name := "sbt-godot-hoccon",
+    // sbt 1.9.x runs on Scala 2.12.
+    scalaVersion := "2.12.20",
+    // Publish with the fully cross-versioned artifact filename
+    // (`sbt-godot-hoccon_2.12_1.0-<ver>.jar`) so it matches the Maven
+    // coordinate path — required for sbt to resolve the plugin from JitPack
+    // (which serves the `publishM2` output verbatim).
+    sbtPluginPublishLegacyMavenStyle := false
   )
 
 lazy val initSystem = godotLibrary("init-system")
