@@ -22,11 +22,13 @@ import scala.scalanative.sbtplugin.ScalaNativePlugin.autoImport._
 lazy val scalaVersionStr = "3.8.1"
 
 // The binding both these libraries and the game compile against. On a JitPack
-// release build (JitPack exports VERSION=<tag>) we pin the released binding;
-// locally we use the -SNAPSHOT published by `sbt publishLocal` in
-// ../../godot-scala-native (same coordinates, only the version differs).
-lazy val bindingVersion =
-  if (sys.env.contains("VERSION")) "0.1.1" else "0.1.1-SNAPSHOT"
+// release build (JitPack exports VERSION=<tag>) we pin the binding released
+// under the SAME tag — release godot-scala-native first, then tag this repo
+// with the same version. Locally the fallback is the NEXT release version,
+// published by `sbt publishLocal` in ../../godot-scala-native (same
+// coordinates; local ivy wins over JitPack, and the version doesn't exist on
+// JitPack until its tag is pushed).
+lazy val bindingVersion = sys.env.getOrElse("VERSION", "0.1.2")
 
 inThisBuild(
   Seq(
@@ -35,23 +37,53 @@ inThisBuild(
     // exact JitPack group for this repo, so publishLocal yields the same
     // coordinates as the released artifacts.
     organization := "com.github.optical002.godot-scala-native-utilities",
-    version := sys.env.getOrElse("VERSION", "0.1.1-SNAPSHOT"),
+    version := sys.env.getOrElse("VERSION", "0.1.2"),
     scalaVersion := scalaVersionStr,
     licenses := Seq("MIT" -> url("https://opensource.org/licenses/MIT")),
-    // Scala-Native fork of pureconfig (optical002/pureconfig, `maven` branch; source on
-    // scala-native-port), hosted as a raw-git Maven repo. Provides typed HOCON decoding via
-    // `pureconfig.ConfigSource` + Scala 3 `derives ConfigReader`. Its backend is the SHocon
-    // `com.typesafe.config` shim (org.akka-js:shocon-parser), pulled in transitively — the shocon
-    // resolver is required so that transitive dependency can be located.
-    resolvers += "pureconfig-native" at
-      "https://raw.githubusercontent.com/optical002/pureconfig/maven/maven",
-    resolvers += "shocon-native" at
-      "https://raw.githubusercontent.com/optical002/shocon/maven/maven",
-    // Released `scala-native-gdextension` binding artifacts (non-SNAPSHOT
-    // bindingVersion, e.g. on a JitPack build of this repo) resolve from
-    // JitPack; inert for local -SNAPSHOT dev (local ivy wins).
+    // Lets the `scala-native-gdextension` binding resolve from JitPack when it
+    // is not in the local ivy repo (which is consulted first, so local
+    // publishLocal artifacts always win during co-development).
     resolvers += "jitpack" at "https://jitpack.io"
   )
+)
+
+// ---------------------------------------------------------------------------
+// Vendored HOCON backend (../vendor). The Scala-Native pureconfig fork and its
+// SHocon backend used to come from raw-git Maven repos that every consumer had
+// to declare as resolvers. Instead the two jars live in ../vendor and their
+// contents (classes + NIR) are REPACKAGED into each hocon-using module's
+// published jar, so consumers need no resolver beyond the usual ones. The
+// vendored jars carry no POM, so their Maven-Central transitives are
+// re-declared here (versions taken from the forks' POMs at 1.0.0-native).
+// ---------------------------------------------------------------------------
+lazy val vendoredHoconJars = Def.setting {
+  (((ThisBuild / baseDirectory).value / ".." / "vendor") * "*.jar").get.sorted
+}
+
+lazy val vendoredHocon: Seq[Setting[_]] = Seq(
+  Compile / unmanagedJars ++= vendoredHoconJars.value.map(Attributed.blank),
+  Test / unmanagedJars ++= vendoredHoconJars.value.map(Attributed.blank),
+  libraryDependencies ++= Seq(
+    // pureconfig-core's typesafe-config API (shimmed natively by shocon).
+    "com.typesafe" % "config" % "1.4.9",
+    // shocon-parser's compile deps.
+    ("org.scala-lang.modules" % "scala-collection-compat" % "2.12.0")
+      .cross(ScalaNativeCrossVersion.binary),
+    ("com.lihaoyi" % "fastparse" % "3.1.1")
+      .cross(ScalaNativeCrossVersion.binary)
+  ),
+  // Merge the vendored jars' contents into this module's published jar.
+  Compile / packageBin / mappings ++= {
+    val outBase = target.value / "vendored-hocon"
+    vendoredHoconJars.value.flatMap { jar =>
+      val dest = outBase / jar.getName.stripSuffix(".jar")
+      IO.unzip(jar, dest)
+      (dest ** "*").get
+        .filter(_.isFile)
+        .filterNot(f => IO.relativize(dest, f).exists(_.startsWith("META-INF")))
+        .map(f => f -> IO.relativize(dest, f).get)
+    }
+  }
 )
 
 /**
@@ -128,9 +160,7 @@ lazy val rx = godotLibrary("rx")
 // its own `prefabs` module (below).
 lazy val godotHoccon = godotLibrary("godot-hoccon")
   .dependsOn(rx)
-  .settings(
-    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native"
-  )
+  .settings(vendoredHocon)
 
 // prefabs (package `prefabs`): the game-agnostic typed-prefab flow extracted from
 // the survivor-game `framework` — the `Prefabs` resource (a `Dictionary[String,
@@ -142,13 +172,9 @@ lazy val godotHoccon = godotLibrary("godot-hoccon")
 // `prefabs.conf` from `prefabs.tres` is provided by the sbt plugin (see
 // language-binding-scala/sbt-godot-scala-native).
 lazy val prefabs = godotLibrary("prefabs")
-  .settings(
-    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native"
-  )
+  .settings(vendoredHocon)
 
 lazy val logicConstructor = godotLibrary("logic-constructor")
   .dependsOn(godotHoccon)
-  .settings(
-    libraryDependencies += "com.github.pureconfig" %%% "pureconfig-core" % "1.0.0-native"
-  )
+  .settings(vendoredHocon)
 
