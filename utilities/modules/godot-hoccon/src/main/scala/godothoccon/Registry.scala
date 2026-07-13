@@ -74,13 +74,12 @@ object Registry:
 
   /** List the `.conf` file stems in `dir`, sorted for deterministic ordering. */
   def collectConfNames(dir: File): Either[String, List[String]] =
-    Option(dir.listFiles())
-      .toRight(s"failed to read config dir ${dir.getPath}")
-      .map: files =>
-        files.toList
-          .filter(f => f.isFile && f.getName.endsWith(".conf"))
-          .map(_.getName.stripSuffix(".conf"))
-          .sorted
+    collectConfNames(dir.getPath)
+
+  /** List the `.conf` file stems under `dir` (an OS path or a `res://` PCK
+    * path), sorted for deterministic ordering. */
+  def collectConfNames(dir: String): Either[String, List[String]] =
+    ConfigFs.listConfNames(dir).toRight(s"failed to read config dir $dir")
 
   /** Load every `.conf` file under `<configDir>/<subdir>`, parse each through
     * `C`'s [[ConfigReader]], and collect them into a [[Registry]] keyed by file
@@ -90,20 +89,28 @@ object Registry:
     * `RxRef` registry cell, which [[RegistryCtx]] models separately).
     */
   def load[C](configDir: File)(using
+    RegistryItem[C],
+    ConfigReader[C]
+  ): Either[ConfigReaderFailures, Registry[C]] =
+    load(configDir.getPath)
+
+  /** As [[load]] but from a String config root (OS path or `res://` PCK path). */
+  def load[C](configDir: String)(using
     item: RegistryItem[C],
     reader: ConfigReader[C]
   ): Either[ConfigReaderFailures, Registry[C]] =
-    val subdirFile = File(configDir, item.subdir)
-    collectConfNames(subdirFile) match
+    val subdir = ConfigFs.join(configDir, item.subdir)
+    collectConfNames(subdir) match
       case Left(msg) =>
         Left(ConfigReaderFailures(asFailure(msg)))
       case Right(names) =>
         val loaded: List[Either[ConfigReaderFailures, (Id[C], C)]] =
           names.map: name =>
-            ConfigSource
-              .file(File(subdirFile, s"$name.conf").getPath)
-              .load[C]
-              .map(cfg => Id[C](name) -> cfg)
+            val path = ConfigFs.join(subdir, s"$name.conf")
+            ConfigFs.readText(path) match
+              case None => Left(ConfigReaderFailures(asFailure(s"config file not found: $path")))
+              case Some(text) =>
+                ConfigSource.string(text).load[C].map(cfg => Id[C](name) -> cfg)
         loaded.collectFirst { case Left(f) => f } match
           case Some(failures) => Left(failures)
           case None => Right(Registry(loaded.collect { case Right(kv) => kv }.toMap))
@@ -128,15 +135,26 @@ object RegistryCtx:
     * the registry starts empty and is filled by [[discoverAndLoad]] (or any
     * later reload).
     */
-  def discover[C](configDir: File)(using item: RegistryItem[C]): Either[String, RegistryCtx[C]] =
-    val subdirFile = File(configDir, item.subdir)
-    Registry.collectConfNames(subdirFile).map: names =>
+  def discover[C](configDir: File)(using RegistryItem[C]): Either[String, RegistryCtx[C]] =
+    discover(configDir.getPath)
+
+  /** As [[discover]] but from a String config root (OS path or `res://`). */
+  def discover[C](configDir: String)(using item: RegistryItem[C]): Either[String, RegistryCtx[C]] =
+    val subdir = ConfigFs.join(configDir, item.subdir)
+    Registry.collectConfNames(subdir).map: names =>
       RegistryCtx(names.map(Id[C](_)).toSet, RxRef(Registry.empty[C]))
 
   /** Discover the ids, load every config body, push the result into the ctx's
     * reactive ref, and return the ctx.
     */
   def discoverAndLoad[C](configDir: File)(using
+    RegistryItem[C],
+    ConfigReader[C]
+  ): Either[String, RegistryCtx[C]] =
+    discoverAndLoad(configDir.getPath)
+
+  /** As [[discoverAndLoad]] but from a String config root (OS path or `res://`). */
+  def discoverAndLoad[C](configDir: String)(using
     RegistryItem[C],
     ConfigReader[C]
   ): Either[String, RegistryCtx[C]] =

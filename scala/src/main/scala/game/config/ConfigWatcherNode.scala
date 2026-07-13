@@ -41,6 +41,7 @@ final class ConfigWatcherNode extends Node:
   private var lastLogged: GameConfig = scala.compiletime.uninitialized
 
   override def _ready(): Unit =
+    resConfigSelfTest()
     ConfigLoader.load() match
       case Left(err) =>
         Gd.print(s"[config] failed to load initial config: $err")
@@ -87,3 +88,26 @@ final class ConfigWatcherNode extends Node:
     else
       val body = changes.map((k, o, n) => s"  $k: $o -> $n").mkString("\n")
       Gd.print(s"[config] reloaded — ${changes.length} field(s) changed:\n$body")
+
+  /** Verifies godot-hoccon's res:// (PCK) config path against files bundled at
+    * res://test_config/. Reads/lists via the engine FileAccess/DirAccess so it
+    * proves config can be loaded from inside an exported PCK. */
+  private def resConfigSelfTest(): Unit =
+    import godothoccon.ConfigFs
+    var pass = 0; var fail = 0
+    def check(name: String)(cond: => Boolean): Unit =
+      try
+        if cond then { pass += 1; Gd.print(s"[res-config] PASS $name") }
+        else { fail += 1; Gd.print(s"[res-config] FAIL $name") }
+      catch
+        case e: Throwable => { fail += 1; Gd.print(s"[res-config] FAIL $name (threw $e)") }
+
+    check("exists res://test_config/application.conf")(
+      ConfigFs.exists("res://test_config/application.conf"))
+    check("readText finds test.value = 42")(
+      ConfigFs.readText("res://test_config/application.conf").exists(_.contains("42")))
+    check("listConfNames sub has alpha+beta, sorted")(
+      ConfigFs.listConfNames("res://test_config/sub") == Some(List("alpha", "beta")))
+    check("missing file does not exist")(
+      !ConfigFs.exists("res://test_config/nope.conf"))
+    Gd.print(s"[res-config] $pass passed, $fail failed")
