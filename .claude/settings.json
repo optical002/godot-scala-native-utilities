@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(wc:*)",
+      "Bash(file:*)",
+      "Bash(which:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(sbt test)",
+      "Bash(sbt -J-Xmx4G test)",
+      "Bash(sbt */test)",
+      "Bash(sbt compile)",
+      "Bash(sbt */compile)",
+      "Bash(sbt godotBuild)",
+      "Bash(sbt clean)",
+      "Bash(sbt projects)",
+      "Bash(godot --headless:*)",
+      "Bash(godot --version)"
+    ]
+  }
+}

@@ -2,14 +2,15 @@ package initsystem
 
 // Engine-independent test fixtures shared across the suites in this package.
 // These factories carry their values directly and take no init params, so their
-// Params type is Unit; the ParentId and InitContext arrive implicitly in initInner.
+// Params type is Unit; the ParentId and InitContext arrive implicitly, and
+// InitBase derives `selfId`/`ctx` from those givens (see InitBase.scala).
 
-final class MyInit(val selfId: InitId, val ctx: InitContext, val value: Double, val backingValue: Double)
+final class MyInit(val value: Double, val backingValue: Double)(using ParentId, InitContext)
     extends InitBase
 
 final class MyBacking(value: Double, backingValue: Double) extends MakeInit[MyInit, Unit]:
-  def initInner(id: InitId, params: Unit)(using parentId: ParentId, ctx: InitContext): MyInit =
-    MyInit(id, ctx, value, backingValue)
+  def initInner(params: Unit)(using ParentId, InitContext): MyInit =
+    MyInit(value, backingValue)
 
 final class ApiCalls:
   var process = 0
@@ -20,7 +21,7 @@ final class ApiCalls:
   var exitTree = 0
   var onFree = 0
 
-final class ApiTestInit(val selfId: InitId, val ctx: InitContext, calls: ApiCalls) extends InitBase:
+final class ApiTestInit(calls: ApiCalls)(using ParentId, InitContext) extends InitBase:
   override def process(delta: Double): Unit =
     calls.process += 1; calls.lastProcessDelta = delta
   override def physicsProcess(delta: Double): Unit =
@@ -30,35 +31,35 @@ final class ApiTestInit(val selfId: InitId, val ctx: InitContext, calls: ApiCall
   override def onFree(): Unit = calls.onFree += 1
 
 final class ApiTestBacking(calls: ApiCalls) extends MakeInit[ApiTestInit, Unit]:
-  def initInner(id: InitId, params: Unit)(using parentId: ParentId, ctx: InitContext): ApiTestInit =
-    ApiTestInit(id, ctx, calls)
+  def initInner(params: Unit)(using ParentId, InitContext): ApiTestInit =
+    ApiTestInit(calls)
 
-final class TestInit(val selfId: InitId, val ctx: InitContext) extends InitBase
+final class TestInit(using ParentId, InitContext) extends InitBase
 
 object Backing extends MakeInit[TestInit, Unit]:
-  def initInner(id: InitId, params: Unit)(using parentId: ParentId, ctx: InitContext): TestInit =
-    TestInit(id, ctx)
+  def initInner(params: Unit)(using ParentId, InitContext): TestInit =
+    TestInit()
 
 final class FreeCounter:
   var count = 0
 
-final class TrackedInit(val selfId: InitId, val ctx: InitContext, counter: FreeCounter) extends InitBase:
+final class TrackedInit(counter: FreeCounter)(using ParentId, InitContext) extends InitBase:
   override def onFree(): Unit = counter.count += 1
 
 final class TrackedBacking(counter: FreeCounter) extends MakeInit[TrackedInit, Unit]:
-  def initInner(id: InitId, params: Unit)(using parentId: ParentId, ctx: InitContext): TrackedInit =
-    TrackedInit(id, ctx, counter)
+  def initInner(params: Unit)(using ParentId, InitContext): TrackedInit =
+    TrackedInit(counter)
 
 final class SiblingRef:
   var id: InitId = InitId.zero
 
-final class FreesOnFreeInit(val selfId: InitId, val ctx: InitContext, sibling: SiblingRef)
+final class FreesOnFreeInit(sibling: SiblingRef)(using ParentId, InitContext)
     extends InitBase:
   override def onFree(): Unit = ctx.free(sibling.id)
 
 final class FreesOnFreeBacking(sibling: SiblingRef) extends MakeInit[FreesOnFreeInit, Unit]:
-  def initInner(id: InitId, params: Unit)(using parentId: ParentId, ctx: InitContext): FreesOnFreeInit =
-    FreesOnFreeInit(id, ctx, sibling)
+  def initInner(params: Unit)(using ParentId, InitContext): FreesOnFreeInit =
+    FreesOnFreeInit(sibling)
 
 object TestSupport:
   def countInits(ctx: InitContext): Int =

@@ -23,12 +23,11 @@ lazy val scalaVersionStr = "3.8.1"
 
 // The binding both these libraries and the game compile against. On a JitPack
 // release build (JitPack exports VERSION=<tag>) we pin the binding released
-// under the SAME tag — release godot-scala-native first, then tag this repo
-// with the same version. Locally the fallback is the NEXT release dev version
-// (a `-SNAPSHOT`), published by `sbt publishLocal` in ../../godot-scala-native
-// (same coordinates; local ivy wins over JitPack, and the version doesn't exist
-// on JitPack until its tag is pushed).
-lazy val bindingVersion = sys.env.getOrElse("VERSION", "0.1.3-SNAPSHOT")
+// under the SAME tag, so the binding must be released under that tag first.
+// The local fallback is the NEXT release version, which does not exist on
+// JitPack until its tag is pushed — until then it resolves from local ivy
+// (which wins over JitPack) via a `publishLocal` of the binding.
+lazy val bindingVersion = sys.env.getOrElse("VERSION", "0.1.6")
 
 inThisBuild(
   Seq(
@@ -37,7 +36,7 @@ inThisBuild(
     // exact JitPack group for this repo, so publishLocal yields the same
     // coordinates as the released artifacts.
     organization := "com.github.optical002.godot-scala-native-utilities",
-    version := sys.env.getOrElse("VERSION", "0.1.3-SNAPSHOT"),
+    version := sys.env.getOrElse("VERSION", "0.1.6"),
     scalaVersion := scalaVersionStr,
     licenses := Seq("MIT" -> url("https://opensource.org/licenses/MIT")),
     // Lets the `scala-native-gdextension` binding resolve from JitPack when it
