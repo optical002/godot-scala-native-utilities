@@ -27,7 +27,7 @@ lazy val scalaVersionStr = "3.8.1"
 // The local fallback is the NEXT release version, which does not exist on
 // JitPack until its tag is pushed — until then it resolves from local ivy
 // (which wins over JitPack) via a `publishLocal` of the binding.
-lazy val bindingVersion = sys.env.getOrElse("VERSION", "0.1.6")
+lazy val bindingVersion = sys.env.getOrElse("VERSION", "0.1.7")
 
 inThisBuild(
   Seq(
@@ -36,7 +36,7 @@ inThisBuild(
     // exact JitPack group for this repo, so publishLocal yields the same
     // coordinates as the released artifacts.
     organization := "com.github.optical002.godot-scala-native-utilities",
-    version := sys.env.getOrElse("VERSION", "0.1.6"),
+    version := sys.env.getOrElse("VERSION", "0.1.7"),
     scalaVersion := scalaVersionStr,
     licenses := Seq("MIT" -> url("https://opensource.org/licenses/MIT")),
     // Lets the `scala-native-gdextension` binding resolve from JitPack when it
