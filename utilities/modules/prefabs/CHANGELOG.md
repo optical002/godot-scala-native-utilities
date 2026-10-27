@@ -9,7 +9,10 @@ its version appears on JitPack only once that tag is pushed.
 
 ## [Unreleased]
 
-_No changes yet._
+### Changed
+- Vendored `shocon-parser` bumped to `1.0.1-native`: `ConfigObject` key lookups and
+  `entrySet` no longer rebuild and hash the whole subtree on every call, removing multi-second
+  stalls when reading large or deeply nested configs.
 
 ## [0.1.2] — 2026-07-12
 

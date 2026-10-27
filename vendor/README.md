@@ -11,7 +11,7 @@ vendored jar carries no POM.
 | Jar | Origin |
 |-----|--------|
 | `pureconfig-core_native0.5_3-1.0.0-native.jar` | [optical002/pureconfig](https://github.com/optical002/pureconfig) fork, `maven` branch (`https://raw.githubusercontent.com/optical002/pureconfig/maven/maven`) |
-| `shocon-parser_native0.5_3-1.0.0-native.jar` | [optical002/shocon](https://github.com/optical002/shocon) fork, `maven` branch (`https://raw.githubusercontent.com/optical002/shocon/maven/maven`) |
+| `shocon-parser_native0.5_3-1.0.1-native.jar` | [optical002/shocon](https://github.com/optical002/shocon) fork, `maven` branch (`https://raw.githubusercontent.com/optical002/shocon/maven/maven`) |
 
 To upgrade: publish new jars from the forks, drop them in here (keep the
 cross-suffix in the filename), and update the transitive pins in
